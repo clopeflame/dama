@@ -39,6 +39,7 @@ function startTurnTimer(room) {
 io.on("connection", socket => {
   console.log("🟢 Conectado:", socket.id);
 
+  // Entrar na sala
   socket.on("joinRoom", ({ roomId, name }) => {
     let room = getRoom(roomId);
     if (!room) {
@@ -49,20 +50,18 @@ io.on("connection", socket => {
       room.turn = "white";
     }
 
-    // reconexão
     const existingPlayer = Object.values(room.players).find(p => p.name === name);
     if (existingPlayer) {
       socket.id = existingPlayer.id;
-      myColor = existingPlayer.color;
+      socket.color = existingPlayer.color;
     } else {
       joinRoom(roomId, socket.id, name);
+      socket.color = room.players[socket.id].color;
     }
 
     socket.join(roomId);
     socket.roomId = roomId;
-    socket.color = room.players[socket.id]?.color;
 
-    // envia estado atual para o reconectado
     socket.emit("boardUpdate", room.board);
     socket.emit("turnChange", room.turn);
     socket.emit("readyUpdate", room.ready);
@@ -71,7 +70,7 @@ io.on("connection", socket => {
     io.to(roomId).emit("roomUpdate", room);
   });
 
-  /* ================= READY ================= */
+  // Pronto
   socket.on("ready", () => {
     const room = getRoom(socket.roomId);
     if (!room || room.started) return;
@@ -96,18 +95,18 @@ io.on("connection", socket => {
     }
   });
 
-  /* ================= MOVE ================= */
+  // Jogada
   socket.on("move", ({ fromX, fromY, toX, toY }) => {
     const room = getRoom(socket.roomId);
     if (!room || !room.started) return;
     if (socket.color !== room.turn) return;
 
     const result = performMove(room.board, fromX, fromY, toX, toY);
-    if (!result.valid) return; // não mostra alertas
+    if (!result.valid) return;
 
     io.to(room.id).emit("boardUpdate", room.board);
 
-    const capturesLeft = validateMove(room.board, toX, toY, toX, toY, socket.color).capture;
+    const capturesLeft = validateMove(room.board, toX, toY, socket.color).mustCapture;
     if (!capturesLeft) {
       room.turn = room.turn === "white" ? "black" : "white";
       io.to(room.id).emit("turnChange", room.turn);
@@ -115,7 +114,7 @@ io.on("connection", socket => {
     }
   });
 
-  /* ================= DESISTIR ================= */
+  // Desistir
   socket.on("resign", () => {
     const room = getRoom(socket.roomId);
     if (!room) return;
@@ -125,7 +124,7 @@ io.on("connection", socket => {
     io.to(room.id).emit("roomUpdate", room);
   });
 
-  /* ================= EMPATE ================= */
+  // Pedido de empate
   socket.on("askDraw", () => {
     const room = getRoom(socket.roomId);
     if (!room) return;
@@ -134,6 +133,7 @@ io.on("connection", socket => {
     io.to(opponentId).emit("drawRequest");
   });
 
+  // Aceitar empate
   socket.on("acceptDraw", () => {
     const room = getRoom(socket.roomId);
     if (!room) return;
@@ -144,14 +144,13 @@ io.on("connection", socket => {
     io.to(room.id).emit("boardUpdate", room.board);
   });
 
-  /* ================= DISCONNECT ================= */
   socket.on("disconnect", () => {
     console.log("🔴 Saiu:", socket.id);
-    if (!socket.roomId) return;
-    // mantém estado para reconexão
   });
 });
 
-server.listen(3000, () => {
-  console.log("🚀 Servidor rodando em http://localhost:3000");
+/* ==================== START SERVER ==================== */
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });

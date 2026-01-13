@@ -1,71 +1,75 @@
 body {
   margin: 0;
-  background: #1e1e1e;
   font-family: Arial, sans-serif;
-  color: white;
+  background: #f0f0f0;
 }
 
-.card {
-  max-width: 300px;
-  margin: 100px auto;
-  background: #2c2c2c;
-  padding: 20px;
-  border-radius: 10px;
+.container {
   text-align: center;
+  margin-top: 50px;
 }
 
-input, button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-  border-radius: 6px;
-  border: none;
+input {
+  padding: 10px;
+  margin: 5px;
+  font-size: 16px;
 }
 
 button {
-  background: #ff9800;
-  font-weight: bold;
+  padding: 10px 20px;
+  font-size: 16px;
   cursor: pointer;
 }
 
-.top {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px;
-}
-
 #board {
-  width: 320px;
-  height: 320px;
-  margin: 20px auto;
   display: grid;
-  grid-template: repeat(8, 1fr) / repeat(8, 1fr);
+  grid-template-columns: repeat(8, 60px);
+  grid-template-rows: repeat(8, 60px);
+  margin: 20px auto;
+  border: 2px solid #333;
 }
 
 .cell {
-  width: 100%;
-  height: 100%;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.dark { background: #444; }
-.light { background: #ccc; }
+.cell.black {
+  background: #769656;
+}
+
+.cell.white {
+  background: #eeeed2;
+}
 
 .piece {
-  width: 80%;
-  height: 80%;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
-  margin: 10%;
+  cursor: pointer;
 }
 
-.white { background: white; }
-.black { background: black; }
+.piece.white {
+  background: #fff;
+  border: 2px solid #000;
+}
 
-.actions {
+.piece.black {
+  background: #000;
+  border: 2px solid #fff;
+}
+
+.controls {
   display: flex;
-  justify-content: space-around;
-  margin-bottom: 20px;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
 }
 
-.hidden {
-  display: none;
+.timer {
+  font-size: 18px;
+  font-weight: bold;
 }

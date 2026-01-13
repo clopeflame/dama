@@ -1,187 +1,21 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Dama Brasileira Multiplayer</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background-color: #f0f0f0;
-    }
-
-    #turn, #timer {
-      font-size: 18px;
-      margin: 10px;
-    }
-
-    #board {
-      display: grid;
-      grid-template-columns: repeat(8, 50px);
-      grid-template-rows: repeat(8, 50px);
-      gap: 0;
-      margin: 20px auto;
-      width: 400px;
-      height: 400px;
-      border: 2px solid #333;
-    }
-
-    .cell {
-      width: 50px;
-      height: 50px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-    }
-
-    #controls {
-      margin: 10px;
-    }
-
-    button {
-      padding: 10px 15px;
-      margin: 5px;
-      font-size: 14px;
-      cursor: pointer;
-    }
-  </style>
+  <title>Dama Brasileira</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-  <h1>Dama Brasileira Multiplayer</h1>
-
-  <div id="turn">Vez:</div>
-  <div id="timer">30</div>
-
-  <div id="controls">
+  <h2>Dama Brasileira Multiplayer</h2>
+  <div class="timer">Tempo: <span id="timer">30</span>s</div>
+  <div id="board"></div>
+  <div class="controls">
     <button id="readyBtn">Pronto</button>
-    <button id="drawBtn">Pedir Empate</button>
+    <button id="drawBtn">Empate</button>
     <button id="resignBtn">Desistir</button>
   </div>
 
-  <div id="board"></div>
-
   <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-
-    const boardDiv = document.getElementById("board");
-    let selected = null;
-    let board = [];
-    let myColor = null;
-
-    const roomId = localStorage.getItem("roomId");
-    const playerName = localStorage.getItem("playerName");
-
-    if (!roomId || !playerName) window.location.href = "/";
-
-    // ================= JOIN ROOM =================
-    socket.emit("joinRoom", { roomId, name: playerName });
-
-    socket.on("roomUpdate", room => {
-      myColor = room.players[socket.id]?.color;
-    });
-
-    document.getElementById("readyBtn").onclick = () => {
-      socket.emit("ready");
-      document.getElementById("readyBtn").disabled = true;
-    };
-
-    document.getElementById("drawBtn").onclick = () => {
-      socket.emit("askDraw");
-    };
-
-    document.getElementById("resignBtn").onclick = () => {
-      alert("Você desistiu. O outro jogador vence!");
-      window.location.href = "/";
-    };
-
-    // ================= SOCKETS =================
-    socket.on("boardUpdate", b => {
-      board = b;
-      renderBoard();
-    });
-
-    socket.on("startGame", turn => {
-      document.getElementById("board").style.display = "grid";
-    });
-
-    socket.on("turnChange", turn => {
-      document.getElementById("turn").innerText =
-        "Vez: " + (turn === "white" ? "Brancas" : "Pretas");
-    });
-
-    socket.on("timer", t => {
-      document.getElementById("timer").innerText = t;
-    });
-
-    socket.on("invalidMove", msg => {
-      alert(msg);
-    });
-
-    socket.on("drawRequest", () => {
-      const accept = confirm("O adversário pediu empate. Aceitar?");
-      if (accept) socket.emit("acceptDraw");
-    });
-
-    socket.on("drawAccepted", () => {
-      alert("Empate aceito! Jogo reiniciado.");
-      board = [];
-      renderBoard();
-      document.getElementById("readyBtn").disabled = false;
-    });
-
-    // ================= RENDER BOARD =================
-    function renderBoard() {
-      boardDiv.innerHTML = "";
-      for (let i = 0; i < 8; i++) {
-        for (let j = 0; j < 8; j++) {
-          const cell = document.createElement("div");
-          cell.className = "cell";
-          if ((i + j) % 2 === 1) cell.style.backgroundColor = "#769656";
-          else cell.style.backgroundColor = "#eeeed2";
-          cell.dataset.x = i;
-          cell.dataset.y = j;
-
-          const piece = board[i][j];
-          if (piece) {
-            const pDiv = document.createElement("div");
-            pDiv.style.width = "80%";
-            pDiv.style.height = "80%";
-            pDiv.style.borderRadius = "50%";
-            pDiv.style.margin = "auto";
-            pDiv.style.marginTop = "10%";
-            pDiv.style.backgroundColor = piece.color === "white" ? "#fff" : "#000";
-            if (piece.isKing) {
-              pDiv.innerText = "♔";
-              pDiv.style.color = piece.color === "white" ? "#000" : "#fff";
-              pDiv.style.fontSize = "24px";
-              pDiv.style.textAlign = "center";
-              pDiv.style.lineHeight = "40px";
-            }
-            cell.appendChild(pDiv);
-          }
-
-          cell.onclick = () => onCellClick(i, j);
-          boardDiv.appendChild(cell);
-        }
-      }
-    }
-
-    // ================= CLICK HANDLER =================
-    function onCellClick(x, y) {
-      const piece = board[x][y];
-      if (selected) {
-        // tentar mover
-        socket.emit("move", { fromX: selected.x, fromY: selected.y, toX: x, toY: y });
-        selected = null;
-      } else {
-        if (piece && piece.color === myColor) {
-          selected = { x, y };
-        }
-      }
-    }
-  </script>
+  <script src="game.js"></script>
 </body>
 </html>

@@ -1,116 +1,47 @@
-/* =========================
-   REGRAS DAMA BRASILEIRA
-========================= */
+function validateRules(board, fromX, fromY, toX, toY, color) {
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const piece = board[fromY][fromX];
+  if (!piece || piece.color !== color) return { valid: false };
 
-const DIRECTIONS = {
-  white: [[-1, -1], [-1, 1]], // peças brancas movem pra frente
-  black: [[1, -1], [1, 1]]    // peças pretas movem pra frente
-};
+  const direction = color === "white" ? -1 : 1;
+  let mustCapture = false;
+  let captured = null;
 
-function isValidPosition(x, y) {
-  return x >= 0 && x < 8 && y >= 0 && y < 8;
-}
+  // movimentos simples
+  if (Math.abs(dx) === 1 && dy === direction && !board[toY][toX]) return { valid: true, captured: null, mustCapture: false };
 
-// Verifica se existe captura obrigatória
-function mandatoryCaptures(board, color) {
-  const captures = [];
-  for (let i = 0; i < 8; i++) {
-    for (let j = 0; j < 8; j++) {
-      const piece = board[i][j];
-      if (!piece || piece.color !== color) continue;
-      const pieceCaptures = getCaptures(board, i, j);
-      if (pieceCaptures.length) captures.push(...pieceCaptures);
-    }
+  // captura obrigatória
+  if (Math.abs(dx) === 2 && Math.abs(dy) === 2) {
+    const midX = fromX + dx / 2;
+    const midY = fromY + dy / 2;
+    const midPiece = board[midY][midX];
+    if (midPiece && midPiece.color !== color && !board[toY][toX]) captured = { x: midX, y: midY };
+    else return { valid: false };
+    mustCapture = true;
   }
-  return captures;
-}
 
-// Retorna todas capturas possíveis da peça
-function getCaptures(board, x, y) {
-  const piece = board[x][y];
-  if (!piece) return [];
-  const color = piece.color;
-  const opponent = color === "white" ? "black" : "white";
-  const captures = [];
-
-  const dirs = piece.isKing ? [[-1,-1],[-1,1],[1,-1],[1,1]] : DIRECTIONS[color];
-
-  dirs.forEach(([dx, dy]) => {
-    let nx = x + dx;
-    let ny = y + dy;
-    let jumped = false;
-    while (isValidPosition(nx, ny)) {
-      const target = board[nx][ny];
-      if (!jumped && target && target.color === opponent) {
-        // peça do oponente encontrada, verificar espaço depois
-        let jumpX = nx + dx;
-        let jumpY = ny + dy;
-        if (isValidPosition(jumpX, jumpY) && !board[jumpX][jumpY]) {
-          captures.push({from:[x,y], over:[nx,ny], to:[jumpX,jumpY]});
-        }
-        break;
-      } else if (target) break;
-      if (!piece.isKing) break; // peão normal não continua
-      nx += dx;
-      ny += dy;
+  // dama voadora
+  if (piece.isKing && Math.abs(dx) === Math.abs(dy)) {
+    let steps = Math.abs(dx);
+    let found = 0;
+    let cap = null;
+    for (let i = 1; i < steps; i++) {
+      const xi = fromX + i * Math.sign(dx);
+      const yi = fromY + i * Math.sign(dy);
+      const p = board[yi][xi];
+      if (p) {
+        if (p.color === color) return { valid: false };
+        found++;
+        cap = { x: xi, y: yi };
+      }
     }
-  });
-
-  return captures;
-}
-
-// Verifica movimentos normais (sem captura)
-function getMoves(board, x, y) {
-  const piece = board[x][y];
-  if (!piece) return [];
-  const color = piece.color;
-  const moves = [];
-  const dirs = piece.isKing ? [[-1,-1],[-1,1],[1,-1],[1,1]] : DIRECTIONS[color];
-
-  dirs.forEach(([dx, dy]) => {
-    let nx = x + dx;
-    let ny = y + dy;
-    while (isValidPosition(nx, ny) && !board[nx][ny]) {
-      moves.push([nx, ny]);
-      if (!piece.isKing) break; // peão normal só anda 1
-      nx += dx;
-      ny += dy;
-    }
-  });
-
-  return moves;
-}
-
-// Promove peão a dama
-function promotePiece(board, x, y) {
-  const piece = board[x][y];
-  if (!piece) return;
-  if ((piece.color === "white" && x === 0) || (piece.color === "black" && x === 7)) {
-    piece.isKing = true;
+    if (found > 1) return { valid: false };
+    captured = cap;
+    mustCapture = found === 1;
   }
+
+  return { valid: true, captured, mustCapture };
 }
 
-// Executa movimento
-function movePiece(board, fromX, fromY, toX, toY) {
-  const piece = board[fromX][fromY];
-  board[toX][toY] = piece;
-  board[fromX][fromY] = null;
-  promotePiece(board, toX, toY);
-}
-
-// Executa captura
-function capturePiece(board, fromX, fromY, overX, overY, toX, toY) {
-  movePiece(board, fromX, fromY, toX, toY);
-  board[overX][overY] = null;
-}
-
-module.exports = {
-  DIRECTIONS,
-  isValidPosition,
-  mandatoryCaptures,
-  getCaptures,
-  getMoves,
-  promotePiece,
-  movePiece,
-  capturePiece
-};
+module.exports = { validateRules };

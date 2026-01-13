@@ -1,130 +1,102 @@
 const socket = io();
+const boardEl = document.getElementById("board");
+const readyBtn = document.getElementById("readyBtn");
+const drawBtn = document.getElementById("drawBtn");
+const resignBtn = document.getElementById("resignBtn");
+const timerEl = document.getElementById("timer");
 
-const boardDiv = document.getElementById("board");
-let selected = null;       // peça selecionada
-let board = [];            // estado atual do tabuleiro
-let myColor = null;
-
-// pega dados do localStorage
-const roomId = localStorage.getItem("roomId");
 const playerName = localStorage.getItem("playerName");
+const roomId = localStorage.getItem("roomId");
+let color, board = [], myTurn = false;
 
-if (!roomId || !playerName) window.location.href = "/";
-
-// ================= JOIN ROOM =================
+// Entrar na sala
 socket.emit("joinRoom", { roomId, name: playerName });
 
-socket.on("roomUpdate", room => {
-  myColor = room.players[socket.id]?.color;
-});
-
-// ================= BOTÕES =================
-document.getElementById("readyBtn").onclick = () => {
-  socket.emit("ready");
-  document.getElementById("readyBtn").disabled = true;
-};
-
-document.getElementById("drawBtn").onclick = () => {
-  socket.emit("askDraw");
-};
-
-document.getElementById("resignBtn").onclick = () => {
-  alert("Você desistiu. O adversário vence!");
-  window.location.href = "/";
-};
-
-// ================= SOCKET.IO =================
+// Atualizar tabuleiro
 socket.on("boardUpdate", b => {
   board = b;
-  renderBoard();
+  drawBoard();
 });
 
-socket.on("startGame", turn => {
-  document.getElementById("board").style.display = "grid";
+socket.on("turnChange", t => {
+  myTurn = (color === t);
 });
 
-socket.on("turnChange", turn => {
-  document.getElementById("turn").innerText =
-    "Vez: " + (turn === "white" ? "Brancas" : "Pretas");
+socket.on("startGame", t => {
+  myTurn = (color === t);
 });
 
 socket.on("timer", t => {
-  document.getElementById("timer").innerText = t;
+  timerEl.textContent = t;
+});
+
+// Ready
+readyBtn.addEventListener("click", () => {
+  readyBtn.disabled = true;
+  socket.emit("ready");
+});
+
+// Empate
+drawBtn.addEventListener("click", () => {
+  socket.emit("askDraw");
 });
 
 socket.on("drawRequest", () => {
-  const accept = confirm("O adversário pediu empate. Aceitar?");
-  if (accept) socket.emit("acceptDraw");
+  if (confirm("O adversário pediu empate. Aceitar?")) {
+    socket.emit("acceptDraw");
+  }
 });
 
 socket.on("drawAccepted", () => {
-  board = [];
-  renderBoard();
-  document.getElementById("readyBtn").disabled = false;
+  alert("Empate aceito! O jogo reiniciou.");
 });
 
-// ================= RENDER BOARD =================
-function renderBoard() {
-  boardDiv.innerHTML = "";
+// Desistir
+resignBtn.addEventListener("click", () => {
+  if (confirm("Deseja desistir?")) socket.emit("resign");
+});
 
-  // se jogador preto, inverter tabuleiro para ficar sempre do lado dele
-  const displayBoard = myColor === "white"
-    ? board
-    : [...board].reverse().map(row => [...row].reverse());
+socket.on("opponentResigned", () => {
+  alert("O adversário desistiu! Você venceu.");
+});
 
-  for (let i = 0; i < 8; i++) {
-    for (let j = 0; j < 8; j++) {
-      const cell = document.createElement("div");
-      cell.className = "cell";
+// Receber cor do jogador
+socket.on("roomUpdate", room => {
+  color = room.players[socket.id].color;
+});
 
-      // cores das casas
-      cell.style.backgroundColor = (i + j) % 2 === 1 ? "#769656" : "#eeeed2";
-      cell.dataset.x = i;
-      cell.dataset.y = j;
-
-      const piece = displayBoard[i][j];
-      if (piece) {
-        const pDiv = document.createElement("div");
-        pDiv.style.width = "80%";
-        pDiv.style.height = "80%";
-        pDiv.style.borderRadius = "50%";
-        pDiv.style.margin = "auto";
-        pDiv.style.marginTop = "10%";
-        pDiv.style.backgroundColor = piece.color === "white" ? "#fff" : "#000";
-
-        if (piece.isKing) {
-          pDiv.innerText = "♔";
-          pDiv.style.color = piece.color === "white" ? "#000" : "#fff";
-          pDiv.style.fontSize = "24px";
-          pDiv.style.textAlign = "center";
-          pDiv.style.lineHeight = "40px";
-        }
-
-        cell.appendChild(pDiv);
+// Desenhar tabuleiro
+function drawBoard() {
+  boardEl.innerHTML = "";
+  const displayBoard = color === "white" ? board.slice().reverse() : board;
+  displayBoard.forEach((row, y) => {
+    const displayRow = color === "white" ? row.slice() : row.slice().reverse();
+    displayRow.forEach((cell, x) => {
+      const div = document.createElement("div");
+      div.classList.add("cell", (x + y) % 2 ? "black" : "white");
+      div.dataset.x = x;
+      div.dataset.y = y;
+      if (cell) {
+        const piece = document.createElement("div");
+        piece.classList.add("piece", cell.color);
+        if (cell.isKing) piece.style.boxShadow = "0 0 0 3px gold inset";
+        div.appendChild(piece);
       }
-
-      cell.onclick = () => onCellClick(i, j);
-      boardDiv.appendChild(cell);
-    }
-  }
+      div.addEventListener("click", () => selectCell(x, y));
+      boardEl.appendChild(div);
+    });
+  });
 }
 
-// ================= CLICK HANDLER =================
-function onCellClick(i, j) {
-  // converte coordenadas se jogador for preto
-  const x = myColor === "white" ? i : 7 - i;
-  const y = myColor === "white" ? j : 7 - j;
+let selected = null;
 
-  const piece = board[x][y];
-
+function selectCell(x, y) {
+  if (!myTurn) return;
+  const piece = board[y][x];
   if (selected) {
-    // tenta mover
     socket.emit("move", { fromX: selected.x, fromY: selected.y, toX: x, toY: y });
     selected = null;
-  } else {
-    // seleciona peça se for sua
-    if (piece && piece.color === myColor) {
-      selected = { x, y };
-    }
+  } else if (piece && piece.color === color) {
+    selected = { x, y };
   }
 }
