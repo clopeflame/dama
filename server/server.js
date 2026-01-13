@@ -28,6 +28,7 @@ function startTurnTimer(room) {
 
     if (room.timeLeft <= 0) {
       clearInterval(room.timer);
+      // Passa a vez
       room.turn = room.turn === "white" ? "black" : "white";
       io.to(room.id).emit("turnChange", room.turn);
       startTurnTimer(room);
@@ -79,6 +80,7 @@ io.on("connection", socket => {
 
     io.to(room.id).emit("readyUpdate", room.ready);
 
+    // Começa contagem de 5s se os 2 jogadores estiverem prontos
     if (Object.keys(room.ready).length === 2) {
       let count = 5;
       const countdown = setInterval(() => {
